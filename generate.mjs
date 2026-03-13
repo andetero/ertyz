@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync } from 'fs';
+import { writeFileSync, mkdirSync, readdirSync } from 'fs';
 
 const TODAY = new Date().toLocaleDateString('en-US', {
   weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -45,6 +45,24 @@ let text = data.content[0].text.trim();
 text = text.replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '').trim();
 const content = JSON.parse(text);
 
+// Save dirs
 mkdirSync('./content', { recursive: true });
+mkdirSync('./content/archive', { recursive: true });
+
+// Today's date slug e.g. 2026-03-13
+const dateSlug = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+
+// Write current + archive copy
 writeFileSync('./content/daily.json', JSON.stringify(content, null, 2));
+writeFileSync(`./content/archive/${dateSlug}.json`, JSON.stringify(content, null, 2));
+
+// Rebuild archive index (list of all past slugs)
+const allFiles = readdirSync('./content/archive')
+  .filter(f => f.endsWith('.json'))
+  .map(f => f.replace('.json', ''))
+  .sort()
+  .reverse();
+writeFileSync('./content/archive/index.json', JSON.stringify(allFiles, null, 2));
+
 console.log('✅ Transmission logged:', content.headline);
+console.log('📁 Archive entries:', allFiles.length);
