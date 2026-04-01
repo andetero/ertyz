@@ -41,9 +41,38 @@ Return ONLY valid JSON with NO markdown formatting, no backticks, no preamble:
 
 const data = await response.json();
 let text = data.content[0].text.trim();
+
 // Strip markdown fences if present
 text = text.replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '').trim();
-const content = JSON.parse(text);
+
+// Robust parsing with fallback field extraction
+let content;
+try {
+  content = JSON.parse(text);
+} catch (e) {
+  console.log('Initial parse failed, using field extraction fallback...');
+  const get = (key) => {
+    const m = text.match(new RegExp(`"${key}"\\s*:\\s*"([\\s\\S]*?)(?<!\\\\)"(?=\\s*[,\\n}])`));
+    return m ? m[1].replace(/\\n/g, '\n') : '';
+  };
+  const getNum = (key) => {
+    const m = text.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`));
+    return m ? parseInt(m[1]) : 50;
+  };
+  content = {
+    date: get('date') || TODAY,
+    tag: get('tag') || 'SIGNAL_CORRUPTED',
+    headline: get('headline') || 'Transmission Recovered',
+    intro: get('intro') || '',
+    article: get('article') || '',
+    quote: get('quote') || '',
+    fact: get('fact') || '',
+    mood: get('mood') || 'UNSTABLE',
+    mood_level: getNum('mood_level'),
+    timestamp: new Date().toISOString()
+  };
+  console.log('Recovered fields:', Object.keys(content).filter(k => content[k]));
+}
 
 // Save dirs
 mkdirSync('./content', { recursive: true });
